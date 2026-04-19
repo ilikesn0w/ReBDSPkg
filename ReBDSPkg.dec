@@ -1,0 +1,21 @@
+## @file
+# Copyright (c) 2026, ilikesn0w. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause
+##
+
+[Defines]
+  DEC_SPECIFICATION = 0x00010005
+  PACKAGE_NAME      = ReBDSPkg
+  PACKAGE_GUID      = D3849062-9974-4163-B9EF-D6AAB5BE2714
+  PACKAGE_VERSION   = 1.0
+
+[Includes]
+  Include
+
+[Protocols]
+  ##
+  # Specific AMI Aptio BDS protocol
+  # Once it appears in the system BDS stops modifying the boot variables,
+  # so this is the ideal time to start our boot management.
+  ## 
+  gBdsAllDriversConnectedProtocolGuid = { 0xDBC9FD21, 0xFAD8, 0x45B0, { 0x9E, 0x78, 0x27, 0x15, 0x88, 0x67, 0xCC, 0x93 }}
