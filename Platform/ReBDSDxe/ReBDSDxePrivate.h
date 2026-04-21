@@ -40,6 +40,29 @@ extern EFI_DRIVER_BINDING_PROTOCOL   gReBDSDxeDriverBinding;
 extern EFI_COMPONENT_NAME_PROTOCOL   gReBDSDxeComponentName;
 extern EFI_COMPONENT_NAME2_PROTOCOL  gReBDSDxeComponentName2;
 
+//
+// all possible boot paths for now
+// will be expanded tomorrow and will be customizable through config
+//
+GLOBAL_REMOVE_IF_UNREFERENCED CONST CHAR16  *BootPaths[] = {
+  L"\\EFI\\Microsoft\\Boot\\bootmgfw.efi", // windows
+  
+  L"\\EFI\\debian\\shimx64.efi",           // debian shim
+  L"\\EFI\\ubuntu\\shimx64.efi",           // ubuntu shim
+  L"\\EFI\\fedora\\shimx64.efi",           // fedora shim
+  L"\\EFI\\arch\\shimx64.efi",             // arch shim
+
+  L"\\EFI\\debian\\grubx64.efi",           // debian grub
+  L"\\EFI\\ubuntu\\grubx64.efi",           // ubuntu grub
+  L"\\EFI\\fedora\\grubx64.efi",           // fedora grub
+  L"\\EFI\\arch\\grubx64.efi",             // arch grub
+
+  L"\\EFI\\BOOT\\BOOTX64.EFI"              // default
+};
+
+GLOBAL_REMOVE_IF_UNREFERENCED CONST UINTN  PathNum =
+  ARRAY_SIZE (BootPaths);
+
 /**
   Test to see if this driver supports ControllerHandle. Any ControllerHandle
   than contains a BlockIo and DiskIo protocol can be supported.

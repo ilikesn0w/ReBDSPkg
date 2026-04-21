@@ -239,48 +239,6 @@ GetVolumeLabel (
 
 STATIC
 BOOLEAN
-IsBootX64PresentOnFsHandle (
-  IN EFI_HANDLE  FsHandle
-  )
-{
-  EFI_STATUS                       Status;
-  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *Fs   = NULL;
-  EFI_FILE_PROTOCOL                *Root = NULL;
-  EFI_FILE_PROTOCOL                *File = NULL;
-
-  Status = gBS->HandleProtocol (
-                  FsHandle,
-                  &gEfiSimpleFileSystemProtocolGuid,
-                  (VOID **)&Fs
-                  );
-  if (EFI_ERROR (Status) || (Fs == NULL)) {
-    return FALSE;
-  }
-
-  Status = Fs->OpenVolume (Fs, &Root);
-  if (EFI_ERROR (Status) || (Root == NULL)) {
-    return FALSE;
-  }
-
-  Status = Root->Open (
-                   Root,
-                   &File,
-                   EFI_REMOVABLE_MEDIA_FILE_NAME_X64,
-                   EFI_FILE_MODE_READ,
-                   0
-                   );
-
-  if (File != NULL) {
-    File->Close (File);
-  }
-
-  Root->Close (Root);
-
-  return !EFI_ERROR (Status);
-}
-
-STATIC
-BOOLEAN
 IsBootOptionFilePathValid (
   IN EFI_BOOT_MANAGER_LOAD_OPTION  *LoadOption
   )
@@ -386,15 +344,89 @@ BootOptionAlreadyExistsForPath (
 }
 
 STATIC
+BOOLEAN
+IsBootPathPresent (
+  IN EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *Fs,
+  IN CONST CHAR16                     *BootPath
+  )
+{
+  EFI_STATUS         Status;
+  EFI_FILE_PROTOCOL  *Root = NULL;
+  EFI_FILE_PROTOCOL  *File = NULL;
+
+  if ((Fs == NULL) || (BootPath == NULL) || (BootPath[0] == L'\0')) {
+    return FALSE;
+  }
+
+  Status = Fs->OpenVolume (Fs, &Root);
+  if (EFI_ERROR (Status) || (Root == NULL)) {
+    return FALSE;
+  }
+
+  Status = Root->Open (
+                   Root,
+                   &File,
+                   (CHAR16 *)BootPath,
+                   EFI_FILE_MODE_READ,
+                   0
+                   );
+
+  if (File != NULL) {
+    File->Close (File);
+  }
+
+  Root->Close (Root);
+
+  return !EFI_ERROR (Status);
+}
+
+STATIC
 EFI_STATUS
-AddBootX64OptionForHandle (
-  IN EFI_HANDLE  FsHandle
+GetBootDescription (
+  IN EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *Fs,
+  IN CONST CHAR16                     *BootPath,
+  OUT CHAR16                          **Description
+  )
+{
+  CONST CHAR16  *StaticDescription;
+
+  if ((Fs == NULL) || (BootPath == NULL) || (Description == NULL)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  *Description = NULL;
+
+  if (StrCmp (BootPath, L"\\EFI\\Microsoft\\Boot\\bootmgfw.efi") == 0) {
+    StaticDescription = L"Windows Boot Manager";
+  } else if (StrStr (BootPath, L"\\EFI\\debian\\") != NULL) {
+    StaticDescription = L"Debian";
+  } else if (StrStr (BootPath, L"\\EFI\\ubuntu\\") != NULL) {
+    StaticDescription = L"Ubuntu";
+  } else if (StrStr (BootPath, L"\\EFI\\fedora\\") != NULL) {
+    StaticDescription = L"Fedora";
+  } else if (StrStr (BootPath, L"\\EFI\\arch\\") != NULL) {
+    StaticDescription = L"Arch";
+  } else {
+    StaticDescription = NULL;
+  }
+
+  if (StaticDescription != NULL) {
+    *Description = AllocateCopyPool (StrSize (StaticDescription), StaticDescription);
+    return (*Description == NULL) ? EFI_OUT_OF_RESOURCES : EFI_SUCCESS;
+  }
+
+  return GetVolumeLabel (Fs, Description);
+}
+
+STATIC
+EFI_STATUS
+AddBootOptionForHandleAndPath (
+  IN EFI_HANDLE    FsHandle,
+  IN CONST CHAR16  *BootPath
   )
 {
   EFI_STATUS                       Status;
   EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *Fs             = NULL;
-  EFI_FILE_PROTOCOL                *Root           = NULL;
-  EFI_FILE_PROTOCOL                *File           = NULL;
   EFI_DEVICE_PATH_PROTOCOL         *CandidatePath  = NULL;
   EFI_BOOT_MANAGER_LOAD_OPTION     *BootOptions    = NULL;
   UINTN                            BootOptionCount = 0;
@@ -410,27 +442,11 @@ AddBootX64OptionForHandle (
     return EFI_NOT_FOUND;
   }
 
-  Status = Fs->OpenVolume (Fs, &Root);
-  if (EFI_ERROR (Status) || (Root == NULL)) {
+  if (!IsBootPathPresent (Fs, BootPath)) {
     return EFI_NOT_FOUND;
   }
 
-  Status = Root->Open (
-                   Root,
-                   &File,
-                   EFI_REMOVABLE_MEDIA_FILE_NAME_X64,
-                   EFI_FILE_MODE_READ,
-                   0
-                   );
-  if (EFI_ERROR (Status) || (File == NULL)) {
-    Root->Close (Root);
-    return EFI_NOT_FOUND;
-  }
-
-  File->Close (File);
-  Root->Close (Root);
-
-  CandidatePath = FileDevicePath (FsHandle, EFI_REMOVABLE_MEDIA_FILE_NAME_X64);
+  CandidatePath = FileDevicePath (FsHandle, (CHAR16 *)BootPath);
   if (CandidatePath == NULL) {
     return EFI_OUT_OF_RESOURCES;
   }
@@ -446,9 +462,9 @@ AddBootX64OptionForHandle (
     EfiBootManagerFreeLoadOptions (BootOptions, BootOptionCount);
   }
 
-  Status = GetVolumeLabel (Fs, &Description);
+  Status = GetBootDescription (Fs, BootPath, &Description);
   if (EFI_ERROR (Status) || (Description == NULL)) {
-    Description = AllocateCopyPool (StrSize (L"BOOTX64"), L"BOOTX64");
+    Description = AllocateCopyPool (StrSize (L"NO NAME"), L"NO NAME");
     if (Description == NULL) {
       FreePool (CandidatePath);
       return EFI_OUT_OF_RESOURCES;
@@ -496,7 +512,13 @@ RemoveInvalidBootOptions (
     }
 
     if (!IsBootOptionFilePathValid (&LoadOptions[Index])) {
-      DEBUG ((DEBUG_INFO, "Removing stale Boot%04x\n", (UINT16)LoadOptions[Index].OptionNumber));
+      DEBUG ((
+        DEBUG_INFO,
+        "Deleting Boot%04x (Attributes=%x, FilePath=%p)\n",
+        (UINT16)LoadOptions[Index].OptionNumber,
+        LoadOptions[Index].Attributes,
+        LoadOptions[Index].FilePath
+        ));
       EfiBootManagerDeleteLoadOptionVariable (
         LoadOptions[Index].OptionNumber,
         LoadOptionTypeBoot
@@ -509,7 +531,7 @@ RemoveInvalidBootOptions (
 
 STATIC
 VOID
-SyncBootX64Options (
+SyncBootOptions (
   VOID
   )
 {
@@ -517,6 +539,7 @@ SyncBootX64Options (
   EFI_HANDLE  *Handles    = NULL;
   UINTN       HandleCount = 0;
   UINTN       Index;
+  UINTN       PathIndex;
 
   RemoveInvalidBootOptions ();
 
@@ -528,18 +551,30 @@ SyncBootX64Options (
                   &Handles
                   );
   if (EFI_ERROR (Status) || (Handles == NULL)) {
-    DEBUG ((DEBUG_INFO, "SyncBootX64Options: no filesystem handles (%r)\n", Status));
+    DEBUG ((DEBUG_INFO, "SyncBootOptions: no filesystem handles (%r)\n", Status));
     return;
   }
 
   for (Index = 0; Index < HandleCount; Index++) {
-    Status = AddBootX64OptionForHandle (Handles[Index]);
-    if (Status == EFI_ALREADY_STARTED) {
-      continue;
-    }
+    for (PathIndex = 0; PathIndex < PathNum; PathIndex++) {
+      Status = AddBootOptionForHandleAndPath (
+                 Handles[Index],
+                 BootPaths[PathIndex]
+                 );
 
-    if (EFI_ERROR (Status) && (Status != EFI_NOT_FOUND)) {
-      DEBUG ((DEBUG_WARN, "AddBootX64OptionForHandle failed on handle %u: %r\n", Index, Status));
+      if (!EFI_ERROR (Status) || (Status == EFI_ALREADY_STARTED)) {
+        break;
+      }
+
+      if ((Status != EFI_NOT_FOUND) && EFI_ERROR (Status)) {
+        DEBUG ((
+          DEBUG_WARN,
+          "SyncBootOptions: Failed on handle %u path %u: %r\n",
+          Index,
+          PathIndex,
+          Status
+          ));
+      }
     }
   }
 
@@ -554,7 +589,7 @@ MainInit (
   IN VOID       *Context
   )
 {
-  SyncBootX64Options ();
+  SyncBootOptions ();
 }
 
 STATIC

@@ -3,7 +3,8 @@
   SPDX-License-Identifier: BSD-3-Clause
 **/
 
-#pragma once
+#ifndef BDS_ALL_DRIVERS_CONNECTED_H
+#define BDS_ALL_DRIVERS_CONNECTED_H
 
 #include <Uefi.h>
 
@@ -21,4 +22,6 @@
 { 0xDBC9FD21, 0xFAD8, 0x45B0,                   \
   { 0x9E, 0x78, 0x27, 0x15, 0x88, 0x67, 0xCC, 0x93 } }
 
-extern EFI_GUID gBdsAllDriversConnectedProtocolGuid;
+extern EFI_GUID  gBdsAllDriversConnectedProtocolGuid;
+
+#endif // BDS_ALL_DRIVERS_CONNECTED_H
