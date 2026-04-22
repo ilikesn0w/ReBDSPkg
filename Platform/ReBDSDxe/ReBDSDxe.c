@@ -637,12 +637,10 @@ ReBDSDxeEntryPoint (
   VOID        *Registration;
   EFI_STATUS  Status;
 
-  if ((SystemTable == NULL) || (SystemTable->FirmwareVendor == NULL)) {
-    return EFI_UNSUPPORTED;
-  }
+  DEBUG ((DEBUG_INFO, "ReBDSDxe initialized, version %s\n", REBDSDXE_VERSION));
 
-  if (StrCmp (SystemTable->FirmwareVendor, L"American Megatrends") != 0) {
-    DEBUG ((DEBUG_ERROR, "Unsupported firmware: %s\n", SystemTable->FirmwareVendor));
+  if (StrCmp (gST->FirmwareVendor, L"American Megatrends") != 0) {
+    DEBUG ((DEBUG_ERROR, "Unsupported firmware: %s\n", gST->FirmwareVendor));
     DEBUG ((DEBUG_ERROR, "Driver is shutting down in:\n"));
     gBS->Stall (1000000);
     DEBUG ((DEBUG_ERROR, "3\n"));
@@ -657,15 +655,21 @@ ReBDSDxeEntryPoint (
     return EFI_UNSUPPORTED;
   }
 
-  EfiLibInstallDriverBindingComponentName2 (
-    ImageHandle,
-    SystemTable,
-    &gReBDSDxeDriverBinding,
-    ImageHandle,
-    &gReBDSDxeComponentName,
-    &gReBDSDxeComponentName2
-    );
+  DEBUG ((DEBUG_INFO, "Trying to install DB/CN/CN2 protocols\n"));
+  Status = EfiLibInstallDriverBindingComponentName2 (
+             ImageHandle,
+             SystemTable,
+             &gReBDSDxeDriverBinding,
+             ImageHandle,
+             &gReBDSDxeComponentName,
+             &gReBDSDxeComponentName2
+             );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "Unable to install DB/CN/CN2 protocols - %r\n", Status));
+    return Status;
+  }
 
+  DEBUG ((DEBUG_INFO, "Trying to install BdsAllDriversConnected callback\n"));
   Status = NotifyAllDriversConnected (MainInit, NULL, &Event, &Registration);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "Failed to register BdsAllDriversConnected callback: %r\n", Status));
