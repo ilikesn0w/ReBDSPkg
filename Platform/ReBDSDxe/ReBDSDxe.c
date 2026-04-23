@@ -648,9 +648,7 @@ ReBDSDxeEntryPoint (
     DEBUG ((DEBUG_ERROR, "2\n"));
     gBS->Stall (1000000);
     DEBUG ((DEBUG_ERROR, "1\n"));
-    if (gST->ConOut != NULL) {
-      gST->ConOut->ClearScreen (gST->ConOut);
-    }
+    gST->ConOut->ClearScreen (gST->ConOut);
 
     return EFI_UNSUPPORTED;
   }

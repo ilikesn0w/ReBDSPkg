@@ -20,6 +20,7 @@
   ComponentName.c
   ReBDSDxe.c
   ReBDSDxePrivate.h
+  FirmwareFile.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -44,6 +45,8 @@
   gEfiComponentNameProtocolGuid
   gEfiComponentName2ProtocolGuid
   gEfiDriverBindingProtocolGuid
+  gEfiFirmwareVolumeProtocolGuid
+  gEfiFirmwareVolume2ProtocolGuid
 
 [Depex]
   gEfiBdsArchProtocolGuid AND
