@@ -51,4 +51,4 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: ReBDSDxe-${{ matrix.arch }}-${{ env.TOOLCHAIN }}-${{ matrix.build_type }}
-          path: UDK/Build/ReBDSPkg/${{ matrix.build_type }}_${{ env.TOOLCHAIN }}/
+          path: edk2/Build/ReBDSPkg/${{ matrix.build_type }}_${{ env.TOOLCHAIN }}/
