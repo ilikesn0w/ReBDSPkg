@@ -43,7 +43,7 @@ jobs:
 
       - name: Build ReBDSDxe
         run: |
-          cd UDK
+          cd edk2
           . ./edksetup.sh
           build -a ${{ matrix.arch }} -b ${{ matrix.build_type }} -t ${{ env.TOOLCHAIN }} -p ${{ env.DSC_PATH }}
 
