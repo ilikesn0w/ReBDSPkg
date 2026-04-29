@@ -16,7 +16,7 @@
 //
 GLOBAL_REMOVE_IF_UNREFERENCED CONST CHAR16  *BootPaths[] = {
   L"\\EFI\\Microsoft\\Boot\\bootmgfw.efi", // windows
-  
+
   L"\\EFI\\debian\\shimx64.efi",           // debian shim
   L"\\EFI\\ubuntu\\shimx64.efi",           // ubuntu shim
   L"\\EFI\\fedora\\shimx64.efi",           // fedora shim
@@ -81,22 +81,48 @@ ReBDSDxeDriverBindingStop (
 
 STATIC
 BOOLEAN
-IsDevicePathSane (
+IsBbsDevicePath (
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath
   )
 {
+  if (DevicePath == NULL) {
+    return FALSE;
+  }
+
+  return (DevicePathType (DevicePath) == BBS_DEVICE_PATH);
+}
+
+STATIC
+BOOLEAN
+IsDevicePathSane (
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,
+  IN UINTN                           DevicePathSize
+  )
+{
+  CONST UINT8                     *Ptr;
+  CONST UINT8                     *End;
   CONST EFI_DEVICE_PATH_PROTOCOL  *Node;
-  UINTN                           Index;
   UINTN                           Len;
+  UINTN                           Index;
 
   if (DevicePath == NULL) {
     return FALSE;
   }
 
-  Node = DevicePath;
+  if (DevicePathSize < sizeof (EFI_DEVICE_PATH_PROTOCOL)) {
+    return FALSE;
+  }
+
+  Ptr = (CONST UINT8 *)DevicePath;
+  End = Ptr + DevicePathSize;
 
   for (Index = 0; Index < MAX_DEVICE_PATH_NODES; Index++) {
-    Len = DevicePathNodeLength (Node);
+    if ((UINTN)(End - Ptr) < sizeof (EFI_DEVICE_PATH_PROTOCOL)) {
+      return FALSE;
+    }
+
+    Node = (CONST EFI_DEVICE_PATH_PROTOCOL *)Ptr;
+    Len  = DevicePathNodeLength (Node);
 
     if (Len < sizeof (EFI_DEVICE_PATH_PROTOCOL)) {
       return FALSE;
@@ -106,11 +132,20 @@ IsDevicePathSane (
       return FALSE;
     }
 
-    if (IsDevicePathEnd (Node)) {
-      return (DevicePathSubType (Node) == END_ENTIRE_DEVICE_PATH_SUBTYPE);
+    if (Len > (UINTN)(End - Ptr)) {
+      return FALSE;
     }
 
-    Node = NextDevicePathNode (Node);
+    if (IsDevicePathEnd (Node)) {
+      if (DevicePathSubType (Node) != END_ENTIRE_DEVICE_PATH_SUBTYPE) {
+        return FALSE;
+      }
+
+      return (Len == sizeof (EFI_DEVICE_PATH_PROTOCOL)) &&
+             ((UINTN)(End - Ptr) == Len);
+    }
+
+    Ptr += Len;
   }
 
   return FALSE;
@@ -118,32 +153,42 @@ IsDevicePathSane (
 
 STATIC
 BOOLEAN
-EFIAPI
 IsDevicePathEqual (
   IN CONST EFI_DEVICE_PATH_PROTOCOL  *Path1,
-  IN CONST EFI_DEVICE_PATH_PROTOCOL  *Path2
+  IN UINTN                           Size1,
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *Path2,
+  IN UINTN                           Size2
   )
 {
-  if (!IsDevicePathSane (Path1) || !IsDevicePathSane (Path2)) {
-    return FALSE;
-  }
+  CONST UINT8  *Ptr1 = (CONST UINT8 *)Path1;
+  CONST UINT8  *End1 = Ptr1 + Size1;
 
-  EFI_DEVICE_PATH_PROTOCOL  *Node1 = (EFI_DEVICE_PATH_PROTOCOL *)Path1;
-  EFI_DEVICE_PATH_PROTOCOL  *Node2 = (EFI_DEVICE_PATH_PROTOCOL *)Path2;
+  CONST UINT8  *Ptr2 = (CONST UINT8 *)Path2;
+  CONST UINT8  *End2 = Ptr2 + Size2;
 
-  while (!IsDevicePathEnd (Node1) && !IsDevicePathEnd (Node2)) {
-    UINTN  Len1 = DevicePathNodeLength (Node1);
-    UINTN  Len2 = DevicePathNodeLength (Node2);
+  UINTN                           Len1, Len2;
+  CONST EFI_DEVICE_PATH_PROTOCOL  *Node1;
+  CONST EFI_DEVICE_PATH_PROTOCOL  *Node2;
 
-    if ((Len1 < sizeof (EFI_DEVICE_PATH_PROTOCOL)) ||
-        (Len2 < sizeof (EFI_DEVICE_PATH_PROTOCOL)) ||
-        (Len1 > MAX_DEVICE_PATH_NODE_SIZE) ||
-        (Len2 > MAX_DEVICE_PATH_NODE_SIZE))
+  while (TRUE) {
+    if (((UINTN)(End1 - Ptr1) < sizeof (EFI_DEVICE_PATH_PROTOCOL)) ||
+        ((UINTN)(End2 - Ptr2) < sizeof (EFI_DEVICE_PATH_PROTOCOL)))
     {
       return FALSE;
     }
 
-    if (Len1 != Len2) {
+    Node1 = (CONST EFI_DEVICE_PATH_PROTOCOL *)Ptr1;
+    Node2 = (CONST EFI_DEVICE_PATH_PROTOCOL *)Ptr2;
+
+    Len1 = DevicePathNodeLength (Node1);
+    Len2 = DevicePathNodeLength (Node2);
+
+    if ((Len1 != Len2) ||
+        (Len1 < sizeof (EFI_DEVICE_PATH_PROTOCOL)) ||
+        (Len1 > MAX_DEVICE_PATH_NODE_SIZE) ||
+        (Len1 > (UINTN)(End1 - Ptr1)) ||
+        (Len2 > (UINTN)(End2 - Ptr2)))
+    {
       return FALSE;
     }
 
@@ -151,11 +196,17 @@ IsDevicePathEqual (
       return FALSE;
     }
 
-    Node1 = NextDevicePathNode (Node1);
-    Node2 = NextDevicePathNode (Node2);
-  }
+    if (IsDevicePathEnd (Node1)) {
+      return IsDevicePathEnd (Node2) &&
+             (DevicePathSubType (Node1) == END_ENTIRE_DEVICE_PATH_SUBTYPE) &&
+             (DevicePathSubType (Node2) == END_ENTIRE_DEVICE_PATH_SUBTYPE) &&
+             ((UINTN)(End1 - Ptr1) == Len1) &&
+             ((UINTN)(End2 - Ptr2) == Len2);
+    }
 
-  return IsDevicePathEnd (Node1) && IsDevicePathEnd (Node2);
+    Ptr1 += Len1;
+    Ptr2 += Len2;
+  }
 }
 
 STATIC
@@ -207,13 +258,13 @@ GetVolumeLabel (
   *Label = NULL;
 
   if (FileSystem == NULL) {
-    DEBUG ((DEBUG_ERROR, "GetVolumeLabel: FileSystem is NULL\n"));
+    DEBUG ((DEBUG_ERROR, "REBDS: GetVolumeLabel: FileSystem is NULL\n"));
     return EFI_INVALID_PARAMETER;
   }
 
   Status = FileSystem->OpenVolume (FileSystem, &Volume);
   if (EFI_ERROR (Status) || (Volume == NULL)) {
-    DEBUG ((DEBUG_ERROR, "GetVolumeLabel: OpenVolume failed: %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "REBDS: GetVolumeLabel: OpenVolume failed: %r\n", Status));
     return EFI_NOT_FOUND;
   }
 
@@ -224,7 +275,7 @@ GetVolumeLabel (
                      NULL
                      );
   if (Status != EFI_BUFFER_TOO_SMALL) {
-    DEBUG ((DEBUG_INFO, "GetVolumeLabel: volume label info not supported (%r)\n", Status));
+    DEBUG ((DEBUG_INFO, "REBDS: GetVolumeLabel: volume label info not supported (%r)\n", Status));
     Volume->Close (Volume);
     return EFI_NOT_FOUND;
   }
@@ -244,7 +295,7 @@ GetVolumeLabel (
   Volume->Close (Volume);
 
   if (EFI_ERROR (Status) || (VolumeInfo->VolumeLabel[0] == L'\0')) {
-    DEBUG ((DEBUG_INFO, "GetVolumeLabel: empty label or read failed (%r)\n", Status));
+    DEBUG ((DEBUG_INFO, "REBDS: GetVolumeLabel: empty label or read failed (%r)\n", Status));
     FreePool (VolumeInfo);
     return EFI_NOT_FOUND;
   }
@@ -256,8 +307,30 @@ GetVolumeLabel (
     return EFI_OUT_OF_RESOURCES;
   }
 
-  DEBUG ((DEBUG_INFO, "Volume label: %s\n", *Label));
+  DEBUG ((DEBUG_INFO, "REBDS: Volume label: %s\n", *Label));
   return EFI_SUCCESS;
+}
+
+STATIC
+BOOLEAN
+GetDevicePathSizeSafe (
+  IN  CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,
+  OUT UINTN                           *DevicePathSize
+  )
+{
+  UINTN  Size;
+
+  if ((DevicePath == NULL) || (DevicePathSize == NULL)) {
+    return FALSE;
+  }
+
+  Size = GetDevicePathSize ((EFI_DEVICE_PATH_PROTOCOL *)DevicePath);
+  if (Size < sizeof (EFI_DEVICE_PATH_PROTOCOL)) {
+    return FALSE;
+  }
+
+  *DevicePathSize = Size;
+  return TRUE;
 }
 
 STATIC
@@ -274,8 +347,17 @@ IsBootOptionFilePathValid (
   EFI_FILE_PROTOCOL                *Root          = NULL;
   EFI_FILE_PROTOCOL                *File          = NULL;
   CONST CHAR16                     *FileName;
+  UINTN                            FilePathSize;
 
   if ((LoadOption == NULL) || (LoadOption->FilePath == NULL)) {
+    return FALSE;
+  }
+
+  if (!GetDevicePathSizeSafe (LoadOption->FilePath, &FilePathSize)) {
+    return FALSE;
+  }
+
+  if (!IsDevicePathSane (LoadOption->FilePath, FilePathSize)) {
     return FALSE;
   }
 
@@ -340,14 +422,20 @@ IsBootOptionFilePathValid (
 STATIC
 BOOLEAN
 BootOptionAlreadyExistsForPath (
-  IN EFI_DEVICE_PATH_PROTOCOL      *CandidatePath,
-  IN EFI_BOOT_MANAGER_LOAD_OPTION  *BootOptions,
-  IN UINTN                         Count
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *CandidatePath,
+  IN EFI_BOOT_MANAGER_LOAD_OPTION    *BootOptions,
+  IN UINTN                           Count
   )
 {
   UINTN  Index;
+  UINTN  CandidateSize;
+  UINTN  ExistingSize;
 
   if ((CandidatePath == NULL) || (BootOptions == NULL)) {
+    return FALSE;
+  }
+
+  if (!GetDevicePathSizeSafe (CandidatePath, &CandidateSize)) {
     return FALSE;
   }
 
@@ -356,14 +444,61 @@ BootOptionAlreadyExistsForPath (
       continue;
     }
 
-    if ((BootOptions[Index].FilePath != NULL) &&
-        IsDevicePathEqual (BootOptions[Index].FilePath, CandidatePath))
+    if (BootOptions[Index].FilePath == NULL) {
+      continue;
+    }
+
+    if (!GetDevicePathSizeSafe (BootOptions[Index].FilePath, &ExistingSize)) {
+      continue;
+    }
+
+    if (IsDevicePathEqual (
+          CandidatePath,
+          CandidateSize,
+          BootOptions[Index].FilePath,
+          ExistingSize
+          ))
     {
       return TRUE;
     }
   }
 
   return FALSE;
+}
+
+STATIC
+UINTN
+FindFirstFreeBootOptionNumberFromFirst (
+  IN EFI_BOOT_MANAGER_LOAD_OPTION  *BootOptions,
+  IN UINTN                         Count
+  )
+{
+  UINTN    Candidate;
+  UINTN    Index;
+  BOOLEAN  Used;
+
+  if (BootOptions == NULL) {
+    return LoadOptionNumberUnassigned;
+  }
+
+  for (Candidate = 1; Candidate <= 0xFFFF; Candidate++) {
+    Used = FALSE;
+
+    for (Index = 0; Index < Count; Index++) {
+      if ((BootOptions[Index].OptionType == LoadOptionTypeBoot) &&
+          (BootOptions[Index].OptionNumber == Candidate))
+      {
+        Used = TRUE;
+        break;
+      }
+    }
+
+    if (!Used) {
+      return Candidate;
+    }
+  }
+
+  return LoadOptionNumberUnassigned;
 }
 
 STATIC
@@ -453,7 +588,9 @@ AddBootOptionForHandleAndPath (
   EFI_DEVICE_PATH_PROTOCOL         *CandidatePath  = NULL;
   EFI_BOOT_MANAGER_LOAD_OPTION     *BootOptions    = NULL;
   UINTN                            BootOptionCount = 0;
-  CHAR16                           *Description    = NULL;
+  UINTN                            Position;
+  UINTN                            OptionNumber;
+  CHAR16                           *Description = NULL;
   EFI_BOOT_MANAGER_LOAD_OPTION     Option;
 
   Status = gBS->HandleProtocol (
@@ -482,7 +619,15 @@ AddBootOptionForHandleAndPath (
       return EFI_ALREADY_STARTED;
     }
 
+    OptionNumber = FindFirstFreeBootOptionNumberFromFirst (BootOptions, BootOptionCount);
     EfiBootManagerFreeLoadOptions (BootOptions, BootOptionCount);
+  } else {
+    OptionNumber = 1;
+  }
+
+  if (OptionNumber == LoadOptionNumberUnassigned) {
+    FreePool (CandidatePath);
+    return EFI_OUT_OF_RESOURCES;
   }
 
   Status = GetBootDescription (Fs, BootPath, &Description);
@@ -495,13 +640,15 @@ AddBootOptionForHandleAndPath (
   }
 
   ZeroMem (&Option, sizeof (Option));
-  Option.OptionNumber = LoadOptionNumberUnassigned;
+  Option.OptionNumber = OptionNumber;
   Option.OptionType   = LoadOptionTypeBoot;
   Option.Attributes   = LOAD_OPTION_ACTIVE;
   Option.Description  = Description;
   Option.FilePath     = CandidatePath;
 
-  Status = EfiBootManagerAddLoadOptionVariable (&Option, 0);
+  Position = (BootOptionCount > 0) ? 1 : 0;
+
+  Status = EfiBootManagerAddLoadOptionVariable (&Option, Position);
 
   FreePool (Description);
   FreePool (CandidatePath);
@@ -518,6 +665,7 @@ RemoveInvalidBootOptions (
   EFI_BOOT_MANAGER_LOAD_OPTION  *LoadOptions = NULL;
   UINTN                         Count        = 0;
   UINTN                         Index;
+  UINTN                         FilePathSize;
 
   LoadOptions = EfiBootManagerGetLoadOptions (&Count, LoadOptionTypeBoot);
   if (LoadOptions == NULL) {
@@ -529,19 +677,40 @@ RemoveInvalidBootOptions (
       continue;
     }
 
-    if (!IsDevicePathSane (LoadOptions[Index].FilePath)) {
-      DEBUG ((DEBUG_WARN, "Skipping malformed Boot%04x\n", (UINT16)LoadOptions[Index].OptionNumber));
+    if (IsBbsDevicePath (LoadOptions[Index].FilePath)) {
+      DEBUG ((
+        DEBUG_INFO,
+        "REBDS: Skipping legacy Boot%04x (BBS)\n",
+        (UINT16)LoadOptions[Index].OptionNumber
+        ));
+      continue;
+    }
+
+    if (!GetDevicePathSizeSafe (LoadOptions[Index].FilePath, &FilePathSize) ||
+        !IsDevicePathSane (LoadOptions[Index].FilePath, FilePathSize))
+    {
+      DEBUG ((
+        DEBUG_WARN,
+        "REBDS: Deleting malformed Boot%04x\n",
+        (UINT16)LoadOptions[Index].OptionNumber
+        ));
+
+      EfiBootManagerDeleteLoadOptionVariable (
+        LoadOptions[Index].OptionNumber,
+        LoadOptionTypeBoot
+        );
       continue;
     }
 
     if (!IsBootOptionFilePathValid (&LoadOptions[Index])) {
       DEBUG ((
         DEBUG_INFO,
-        "Deleting Boot%04x (Attributes=%x, FilePath=%p)\n",
+        "REBDS: Deleting Boot%04x (Attributes=%x, FilePath=%p)\n",
         (UINT16)LoadOptions[Index].OptionNumber,
         LoadOptions[Index].Attributes,
         LoadOptions[Index].FilePath
         ));
+
       EfiBootManagerDeleteLoadOptionVariable (
         LoadOptions[Index].OptionNumber,
         LoadOptionTypeBoot
@@ -574,7 +743,7 @@ SyncBootOptions (
                   &Handles
                   );
   if (EFI_ERROR (Status) || (Handles == NULL)) {
-    DEBUG ((DEBUG_INFO, "SyncBootOptions: no filesystem handles (%r)\n", Status));
+    DEBUG ((DEBUG_INFO, "REBDS: SyncBootOptions: no filesystem handles (%r)\n", Status));
     return;
   }
 
@@ -592,7 +761,7 @@ SyncBootOptions (
       if ((Status != EFI_NOT_FOUND) && EFI_ERROR (Status)) {
         DEBUG ((
           DEBUG_WARN,
-          "SyncBootOptions: Failed on handle %u path %u: %r\n",
+          "REBDS: SyncBootOptions: Failed on handle %u path %u: %r\n",
           Index,
           PathIndex,
           Status
@@ -663,8 +832,8 @@ ReBDSDxeEntryPoint (
   DEBUG ((DEBUG_INFO, "ReBDSDxe initialized, version %s\n", REBDSDXE_VERSION));
 
   if (StrCmp (gST->FirmwareVendor, L"American Megatrends") != 0) {
-    DEBUG ((DEBUG_ERROR, "Unsupported firmware: %s\n", gST->FirmwareVendor));
-    DEBUG ((DEBUG_ERROR, "Driver is shutting down in:\n"));
+    DEBUG ((DEBUG_ERROR, "REBDS: Unsupported firmware: %s\n", gST->FirmwareVendor));
+    DEBUG ((DEBUG_ERROR, "REBDS: Driver is shutting down in:\n"));
     gBS->Stall (1000000);
     DEBUG ((DEBUG_ERROR, "3\n"));
     gBS->Stall (1000000);
@@ -676,7 +845,7 @@ ReBDSDxeEntryPoint (
     return EFI_UNSUPPORTED;
   }
 
-  DEBUG ((DEBUG_INFO, "Trying to install DB/CN/CN2 protocols\n"));
+  DEBUG ((DEBUG_INFO, "REBDS: Trying to install DB/CN/CN2 protocols\n"));
   Status = EfiLibInstallDriverBindingComponentName2 (
              ImageHandle,
              SystemTable,
@@ -686,14 +855,14 @@ ReBDSDxeEntryPoint (
              &gReBDSDxeComponentName2
              );
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "Unable to install DB/CN/CN2 protocols - %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "REBDS: Unable to install DB/CN/CN2 protocols - %r\n", Status));
     return Status;
   }
 
-  DEBUG ((DEBUG_INFO, "Trying to install BdsAllDriversConnected callback\n"));
+  DEBUG ((DEBUG_INFO, "REBDS: Trying to install BdsAllDriversConnected callback\n"));
   Status = NotifyAllDriversConnected (MainInit, NULL, &Event, &Registration);
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "Failed to register BdsAllDriversConnected callback: %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "REBDS: Failed to register BdsAllDriversConnected callback: %r\n", Status));
     return Status;
   }
 
