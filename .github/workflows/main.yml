@@ -20,10 +20,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
@@ -48,7 +48,7 @@ jobs:
           build -a ${{ matrix.arch }} -b ${{ matrix.build_type }} -t ${{ env.TOOLCHAIN }} -p ${{ env.DSC_PATH }}
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ReBDSDxe-${{ matrix.arch }}-${{ env.TOOLCHAIN }}-${{ matrix.build_type }}
           path: edk2/Build/ReBDSPkg/${{ matrix.build_type }}_${{ env.TOOLCHAIN }}/
