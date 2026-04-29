@@ -80,7 +80,7 @@ UefiHiiServicesLibConstructor (
   //
   Status = gBS->LocateProtocol (&gEfiHiiStringProtocolGuid, NULL, (VOID **)&gHiiString);
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_INFO, "REBDS: HII String not available %r\n", Status));
+    DEBUG ((DEBUG_INFO, "REBDS: HII String not available (%r)\n", Status));
     gHiiString = NULL;
   }
 

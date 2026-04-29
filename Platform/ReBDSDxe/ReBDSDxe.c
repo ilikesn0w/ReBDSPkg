@@ -15,19 +15,93 @@
 // will be expanded tomorrow and will be customizable through config
 //
 GLOBAL_REMOVE_IF_UNREFERENCED CONST CHAR16  *BootPaths[] = {
-  L"\\EFI\\Microsoft\\Boot\\bootmgfw.efi", // windows
+  L"\\EFI\\Microsoft\\Boot\\bootmgfw.efi",     // Windows
 
-  L"\\EFI\\debian\\shimx64.efi",           // debian shim
-  L"\\EFI\\ubuntu\\shimx64.efi",           // ubuntu shim
-  L"\\EFI\\fedora\\shimx64.efi",           // fedora shim
-  L"\\EFI\\arch\\shimx64.efi",             // arch shim
+  L"\\EFI\\Arch\\shimx64.efi",                // Arch shim
+  L"\\EFI\\Arch\\grubx64.efi",                // Arch grub
 
-  L"\\EFI\\debian\\grubx64.efi",           // debian grub
-  L"\\EFI\\ubuntu\\grubx64.efi",           // ubuntu grub
-  L"\\EFI\\fedora\\grubx64.efi",           // fedora grub
-  L"\\EFI\\arch\\grubx64.efi",             // arch grub
+  L"\\EFI\\Astra\\shimx64.efi",               // Astra shim
+  L"\\EFI\\Astra\\grubx64.efi",               // Astra grub
 
-  L"\\EFI\\BOOT\\BOOTX64.EFI"              // default
+  L"\\EFI\\CentOS\\shimx64.efi",              // CentOS shim
+  L"\\EFI\\CentOS\\grubx64.efi",              // CentOS grub
+
+  L"\\EFI\\Debian\\shimx64.efi",              // Debian shim
+  L"\\EFI\\Debian\\grubx64.efi",              // Debian grub
+
+  L"\\EFI\\Deepin\\shimx64.efi",              // Deepin shim
+  L"\\EFI\\Deepin\\grubx64.efi",              // Deepin grub
+
+  L"\\EFI\\elementaryOS\\shimx64.efi",        // elementaryOS shim
+  L"\\EFI\\elementaryOS\\grubx64.efi",        // elementaryOS grub
+
+  L"\\EFI\\Endless\\shimx64.efi",             // Endless shim
+  L"\\EFI\\Endless\\grubx64.efi",             // Endless grub
+
+  L"\\EFI\\Gentoo\\shimx64.efi",              // Gentoo shim
+  L"\\EFI\\Gentoo\\grubx64.efi",              // Gentoo grub
+
+  L"\\EFI\\Fedora\\shimx64.efi",              // Fedora shim
+  L"\\EFI\\Fedora\\grubx64.efi",              // Fedora grub
+
+  L"\\EFI\\KDEneon\\shimx64.efi",             // KDE neon shim
+  L"\\EFI\\KDEneon\\grubx64.efi",             // KDE neon grub
+
+  L"\\EFI\\Kali\\shimx64.efi",                // Kali shim
+  L"\\EFI\\Kali\\grubx64.efi",                // Kali grub
+
+  L"\\EFI\\Mageia\\shimx64.efi",              // Mageia shim
+  L"\\EFI\\Mageia\\grubx64.efi",              // Mageia grub
+
+  L"\\EFI\\Manjaro\\shimx64.efi",             // Manjaro shim
+  L"\\EFI\\Manjaro\\grubx64.efi",             // Manjaro grub
+
+  L"\\EFI\\Mint\\shimx64.efi",                // Mint shim
+  L"\\EFI\\Mint\\grubx64.efi",                // Mint grub
+
+  L"\\EFI\\openSUSE\\shimx64.efi",            // openSUSE shim
+  L"\\EFI\\openSUSE\\grubx64.efi",            // openSUSE grub
+
+  L"\\EFI\\Oracle\\shimx64.efi",              // Oracle Linux shim
+  L"\\EFI\\Oracle\\grubx64.efi",              // Oracle Linux grub
+
+  L"\\EFI\\PopOS\\shimx64.efi",               // Pop!_OS shim
+  L"\\EFI\\PopOS\\grubx64.efi",               // Pop!_OS grub
+
+  L"\\EFI\\redhat\\shimx64.efi",              // RedHat shim
+  L"\\EFI\\redhat\\grubx64.efi",              // RedHat grub
+
+  L"\\EFI\\RHEL\\shimx64.efi",                // RHEL shim
+  L"\\EFI\\RHEL\\grubx64.efi",                // RHEL grub
+
+  L"\\EFI\\Rocky\\shimx64.efi",               // Rocky shim
+  L"\\EFI\\Rocky\\grubx64.efi",               // Rocky grub
+
+  L"\\EFI\\Solus\\shimx64.efi",               // Solus shim
+  L"\\EFI\\Solus\\grubx64.efi",               // Solus grub
+
+  L"\\EFI\\Lubuntu\\shimx64.efi",             // Lubuntu shim
+  L"\\EFI\\Lubuntu\\grubx64.efi",             // Lubuntu grub
+
+  L"\\EFI\\UbuntuMATE\\shimx64.efi",          // Ubuntu MATE shim
+  L"\\EFI\\UbuntuMATE\\grubx64.efi",          // Ubuntu MATE grub
+
+  L"\\EFI\\Xubuntu\\shimx64.efi",             // Xubuntu shim
+  L"\\EFI\\Xubuntu\\grubx64.efi",             // Xubuntu grub
+
+  L"\\EFI\\Ubuntu\\shimx64.efi",              // Ubuntu shim
+  L"\\EFI\\Ubuntu\\grubx64.efi",              // Ubuntu grub
+
+  L"\\EFI\\Void\\shimx64.efi",                // Void shim
+  L"\\EFI\\Void\\grubx64.efi",                // Void grub
+
+  L"\\EFI\\Zorin\\shimx64.efi",               // Zorin shim
+  L"\\EFI\\Zorin\\grubx64.efi",               // Zorin grub
+
+  L"\\EFI\\MX\\shimx64.efi",                  // MX shim
+  L"\\EFI\\MX\\grubx64.efi",                  // MX grub
+
+  L"\\EFI\\BOOT\\BOOTX64.EFI"                 // default
 };
 
 GLOBAL_REMOVE_IF_UNREFERENCED CONST UINTN  PathNum =
@@ -556,14 +630,62 @@ GetBootDescription (
 
   if (StrCmp (BootPath, L"\\EFI\\Microsoft\\Boot\\bootmgfw.efi") == 0) {
     StaticDescription = L"Windows Boot Manager";
-  } else if (StrStr (BootPath, L"\\EFI\\debian\\") != NULL) {
-    StaticDescription = L"Debian";
-  } else if (StrStr (BootPath, L"\\EFI\\ubuntu\\") != NULL) {
-    StaticDescription = L"Ubuntu";
-  } else if (StrStr (BootPath, L"\\EFI\\fedora\\") != NULL) {
-    StaticDescription = L"Fedora";
-  } else if (StrStr (BootPath, L"\\EFI\\arch\\") != NULL) {
+  } else if (StrStr (BootPath, L"\\EFI\\Arch\\") != NULL) {
     StaticDescription = L"Arch";
+  } else if (StrStr (BootPath, L"\\EFI\\Astra\\") != NULL) {
+    StaticDescription = L"Astra";
+  } else if (StrStr (BootPath, L"\\EFI\\CentOS\\") != NULL) {
+    StaticDescription = L"CentOS";
+  } else if (StrStr (BootPath, L"\\EFI\\Debian\\") != NULL) {
+    StaticDescription = L"Debian";
+  } else if (StrStr (BootPath, L"\\EFI\\Deepin\\") != NULL) {
+    StaticDescription = L"Deepin";
+  } else if (StrStr (BootPath, L"\\EFI\\elementaryOS\\") != NULL) {
+    StaticDescription = L"elementaryOS";
+  } else if (StrStr (BootPath, L"\\EFI\\Endless\\") != NULL) {
+    StaticDescription = L"Endless";
+  } else if (StrStr (BootPath, L"\\EFI\\Gentoo\\") != NULL) {
+    StaticDescription = L"Gentoo";
+  } else if (StrStr (BootPath, L"\\EFI\\Fedora\\") != NULL) {
+    StaticDescription = L"Fedora";
+  } else if (StrStr (BootPath, L"\\EFI\\KDEneon\\") != NULL) {
+    StaticDescription = L"KDE neon";
+  } else if (StrStr (BootPath, L"\\EFI\\Kali\\") != NULL) {
+    StaticDescription = L"Kali";
+  } else if (StrStr (BootPath, L"\\EFI\\Mageia\\") != NULL) {
+    StaticDescription = L"Mageia";
+  } else if (StrStr (BootPath, L"\\EFI\\Manjaro\\") != NULL) {
+    StaticDescription = L"Manjaro";
+  } else if (StrStr (BootPath, L"\\EFI\\Mint\\") != NULL) {
+    StaticDescription = L"Mint";
+  } else if (StrStr (BootPath, L"\\EFI\\openSUSE\\") != NULL) {
+    StaticDescription = L"openSUSE";
+  } else if (StrStr (BootPath, L"\\EFI\\Oracle\\") != NULL) {
+    StaticDescription = L"Oracle Linux";
+  } else if (StrStr (BootPath, L"\\EFI\\PopOS\\") != NULL) {
+    StaticDescription = L"Pop!_OS";
+  } else if (StrStr (BootPath, L"\\EFI\\redhat\\") != NULL) {
+    StaticDescription = L"RedHat";
+  } else if (StrStr (BootPath, L"\\EFI\\RHEL\\") != NULL) {
+    StaticDescription = L"RHEL";
+  } else if (StrStr (BootPath, L"\\EFI\\Rocky\\") != NULL) {
+    StaticDescription = L"Rocky";
+  } else if (StrStr (BootPath, L"\\EFI\\Solus\\") != NULL) {
+    StaticDescription = L"Solus";
+  } else if (StrStr (BootPath, L"\\EFI\\Lubuntu\\") != NULL) {
+    StaticDescription = L"Lubuntu";
+  } else if (StrStr (BootPath, L"\\EFI\\UbuntuMATE\\") != NULL) {
+    StaticDescription = L"Ubuntu MATE";
+  } else if (StrStr (BootPath, L"\\EFI\\Xubuntu\\") != NULL) {
+    StaticDescription = L"Xubuntu";
+  } else if (StrStr (BootPath, L"\\EFI\\Ubuntu\\") != NULL) {
+    StaticDescription = L"Ubuntu";
+  } else if (StrStr (BootPath, L"\\EFI\\Void\\") != NULL) {
+    StaticDescription = L"Void";
+  } else if (StrStr (BootPath, L"\\EFI\\Zorin\\") != NULL) {
+    StaticDescription = L"Zorin";
+  } else if (StrStr (BootPath, L"\\EFI\\MX\\") != NULL) {
+    StaticDescription = L"MX";
   } else {
     StaticDescription = NULL;
   }
